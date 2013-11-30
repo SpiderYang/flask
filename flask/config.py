@@ -21,18 +21,26 @@ class ConfigAttribute(object):
     """Makes an attribute forward to the config"""
 
     def __init__(self, name, get_converter=None):
+        """
+        name: 属性名称
+        get_converter: 属性值转换方法
+        """
         self.__name__ = name
         self.get_converter = get_converter
 
     def __get__(self, obj, type=None):
         if obj is None:
             return self
+        #从obj.config拿到对应属性值
         rv = obj.config[self.__name__]
+        #如果存在转换方法，转换之
         if self.get_converter is not None:
             rv = self.get_converter(rv)
+        #返回值
         return rv
 
     def __set__(self, obj, value):
+        #放入obj.config   key-value
         obj.config[self.__name__] = value
 
 
@@ -81,6 +89,10 @@ class Config(dict):
     """
 
     def __init__(self, root_path, defaults=None):
+        """
+        root_path: 配置文件所在的根路径
+        defaults: 默认配置值的map
+        """
         dict.__init__(self, defaults or {})
         self.root_path = root_path
 
@@ -96,8 +108,10 @@ class Config(dict):
                        files.
         :return: bool. `True` if able to load config, `False` otherwise.
         """
+        #从系统获取环境变量值，是一个文件路径
         rv = os.environ.get(variable_name)
         if not rv:
+            #没有环境变量，处理之
             if silent:
                 return False
             raise RuntimeError('The environment variable %r is not set '
@@ -105,6 +119,7 @@ class Config(dict):
                                'loaded.  Set this variable and make it '
                                'point to a configuration file' %
                                variable_name)
+        #文件路径
         return self.from_pyfile(rv, silent=silent)
 
     def from_pyfile(self, filename, silent=False):
@@ -125,12 +140,15 @@ class Config(dict):
         d = imp.new_module('config')
         d.__file__ = filename
         try:
+            #将文件作为模块编译
             with open(filename) as config_file:
                 exec(compile(config_file.read(), filename, 'exec'), d.__dict__)
         except IOError as e:
+            #编译如果有问题，但是开启了静默模式，return false
             if silent and e.errno in (errno.ENOENT, errno.EISDIR):
                 return False
             e.strerror = 'Unable to load configuration file (%s)' % e.strerror
+            #抛出异常
             raise
         self.from_object(d)
         return True
@@ -161,6 +179,7 @@ class Config(dict):
         if isinstance(obj, string_types):
             obj = import_string(obj)
         for key in dir(obj):
+            #大写的才读
             if key.isupper():
                 self[key] = getattr(obj, key)
 
